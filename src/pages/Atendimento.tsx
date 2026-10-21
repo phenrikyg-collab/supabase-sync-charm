@@ -3930,6 +3930,7 @@ export default function Atendimento() {
           telefone={telefoneIdentificado}
           emailCliente={(conversaAtual as any).email ?? (conversaAtual as any).email_cliente ?? null}
           nomeCliente={nomeConversa(conversaAtual)}
+          trayCustomerId={(conversaAtual as any).tray_customer_id ?? null}
           onEnviada={(id) => setPropostaId(id)}
         />
       )}

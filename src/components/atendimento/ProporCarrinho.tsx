@@ -36,6 +36,15 @@ const PROPOR_CARRINHO_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/propor-carrin
 const CALCULAR_FRETE_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/calcular-frete`;
 const GERAR_TEXTO_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/gerar-texto-carrinho`;
 
+export const OPCOES_ENVIO = ["FRETE GRÁTIS", "RETIRAR NA LOJA", "SEDEX", "PAC", "LOGGI EXPRESS", "JADLOG .COM"] as const;
+const soDigitos = (v: string) => v.replace(/\D/g, "");
+const mascaraCpf = (v: string) => {
+  const d = soDigitos(v).slice(0, 11);
+  return d.replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d)/, "$1.$2").replace(/(\d{3})(\d{1,2})$/, "$1-$2");
+};
+const mascaraCep = (v: string) => soDigitos(v).slice(0, 8).replace(/(\d{5})(\d)/, "$1-$2");
+type DadosTray = { nome: string; cpf: string; email: string; telefone: string; cep: string; endereco: string; numero: string; complemento: string; bairro: string; cidade: string; uf: string };
+
 const chaveProposta = (conversaId: string | number) => `proposta-carrinho:${conversaId}`;
 
 export function salvarPropostaDaConversa(conversaId: string | number, propostaId: string | number) {
@@ -174,7 +183,11 @@ export function FormularioProposta({
   emailInicial,
   onEnviada,
   modo = "whatsapp",
+  nomeInicial,
+  trayCustomerId,
 }: {
+  nomeInicial?: string | null;
+  trayCustomerId?: string | number | null;
   conversaId?: string | number;
   telefone?: string | null;
   emailInicial?: string | null;
@@ -203,6 +216,31 @@ export function FormularioProposta({
   const cupomJuntadoRef = useRef<string | null>(null);
 
   const modoTexto = modo === "texto";
+  const [envio, setEnvio] = useState("");
+  const [dadosTray, setDadosTray] = useState<DadosTray>({
+    nome: nomeInicial ?? "", cpf: "", email: emailInicial ?? "", telefone: telefone ?? "",
+    cep: "", endereco: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "",
+  });
+  const setDado = (k: keyof DadosTray, v: string) => setDadosTray((d) => ({ ...d, [k]: v }));
+  const cepTrayBuscado = useRef("");
+  useEffect(() => {
+    const d = soDigitos(dadosTray.cep);
+    if (d.length !== 8 || cepTrayBuscado.current === d) return;
+    cepTrayBuscado.current = d;
+    fetch(`https://viacep.com.br/ws/${d}/json/`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (!j || j.erro) return;
+        setDadosTray((x) => ({
+          ...x,
+          endereco: j.logradouro || x.endereco,
+          bairro: j.bairro || x.bairro,
+          cidade: j.localidade || x.cidade,
+          uf: j.uf || x.uf,
+        }));
+      })
+      .catch(() => {});
+  }, [dadosTray.cep]);
 
   useEffect(() => {
     setEmail(emailInicial ?? "");
@@ -229,7 +267,13 @@ export function FormularioProposta({
     itens.length > 0 &&
     itensIncompletos.length === 0 &&
     emailValido &&
-    (modoTexto || !!telefone);
+    (modoTexto || !!telefone) &&
+    (modoTexto || envio !== "");
+  const semCadastroTray = !modoTexto && !(trayCustomerId ?? contexto?.tray_customer_id);
+  const dadosTrayIncompletos = (["nome", "cpf", "email", "telefone", "cep", "endereco", "numero", "bairro", "cidade", "uf"] as const).some(
+    (k) => !dadosTray[k].trim(),
+  );
+  const avisoFreteEnvio = (envio === "FRETE GRÁTIS" || envio === "RETIRAR NA LOJA") && paraNumero(frete) > 0;
 
   // Contexto da cliente (CEP, saldo e cupons). Recarrega quando o subtotal muda,
   // porque "atinge" e "valor_uso" dependem do valor do carrinho.
@@ -406,6 +450,22 @@ export function FormularioProposta({
       if (json.proposta_id != null) {
         if (conversaId != null) salvarPropostaDaConversa(conversaId, json.proposta_id);
         onEnviada?.(json.proposta_id);
+        const clienteDados = semCadastroTray
+          ? {
+              nome: dadosTray.nome.trim(), cpf: soDigitos(dadosTray.cpf), email: dadosTray.email.trim(),
+              telefone: soDigitos(dadosTray.telefone), cep: soDigitos(dadosTray.cep), endereco: dadosTray.endereco.trim(),
+              numero: dadosTray.numero.trim(), complemento: dadosTray.complemento.trim(), bairro: dadosTray.bairro.trim(),
+              cidade: dadosTray.cidade.trim(), uf: dadosTray.uf.trim().toUpperCase(),
+            }
+          : null;
+        const { error: erroEnvio } = await chamarRpc("pagamentos_proposta_definir_envio", {
+          p_id: json.proposta_id,
+          p_envio: envio,
+          p_cliente_dados: clienteDados,
+        });
+        if (erroEnvio) {
+          toast({ title: "Forma de envio não ficou salva na proposta", description: erroEnvio.message || "Tente novamente." });
+        }
         if (cupomEscolhido) {
           const { data: marcado, error: erroMarcar } = await chamarRpc<{ ok?: boolean; erro?: string }>(
             "proposta_cashback_marcar",
@@ -886,6 +946,65 @@ export function FormularioProposta({
         </div>
       </div>
 
+      {!modoTexto && (
+        <div className="space-y-1.5">
+          <Label htmlFor="proposta-envio">Envio</Label>
+          <select
+            id="proposta-envio"
+            value={envio}
+            onChange={(e) => setEnvio(e.target.value)}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="" disabled>Selecione</option>
+            {OPCOES_ENVIO.map((o) => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
+          {avisoFreteEnvio && (
+            <p className="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning-foreground">
+              Frete informado é maior que zero
+            </p>
+          )}
+        </div>
+      )}
+
+      {semCadastroTray && (
+        <div className="space-y-2 rounded-md border border-border p-3">
+          <p className="text-sm font-medium">Dados para o pedido na Tray</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {([
+              ["nome", "Nome completo"], ["cpf", "CPF"], ["email", "E-mail"], ["telefone", "Celular"], ["cep", "CEP"],
+              ["endereco", "Endereço"], ["numero", "Número"], ["complemento", "Complemento"], ["bairro", "Bairro"],
+              ["cidade", "Cidade"], ["uf", "UF"],
+            ] as [keyof DadosTray, string][]).map(([k, rotulo]) => (
+              <div key={k} className="space-y-1">
+                <Label htmlFor={`tray-${k}`} className="text-xs">{rotulo}</Label>
+                <Input
+                  id={`tray-${k}`}
+                  value={dadosTray[k]}
+                  inputMode={k === "cpf" || k === "cep" || k === "telefone" ? "numeric" : undefined}
+                  placeholder={k === "cpf" ? "000.000.000-00" : k === "cep" ? "00000-000" : undefined}
+                  maxLength={k === "uf" ? 2 : undefined}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setDado(k, k === "cpf" ? mascaraCpf(v) : k === "cep" ? mascaraCep(v) : k === "uf" ? v.toUpperCase() : v);
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          {dadosTrayIncompletos && (
+            <p className="text-xs text-muted-foreground">
+              Sem esses dados o pedido não entra sozinho na Tray, vai para a fila de inserir manual.
+            </p>
+          )}
+        </div>
+      )}
+
+      {!modoTexto && envio === "" && (
+        <p className="text-xs text-muted-foreground">Escolha a forma de envio</p>
+      )}
+
       <Button
         onClick={modoTexto ? gerarTexto : enviar}
         disabled={!valido || enviando}
@@ -1084,7 +1203,9 @@ export function ProporCarrinhoDialog({
   emailCliente,
   nomeCliente,
   onEnviada,
+  trayCustomerId,
 }: {
+  trayCustomerId?: string | number | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   conversaId?: string | number;
@@ -1112,6 +1233,8 @@ export function ProporCarrinhoDialog({
           conversaId={conversaId}
           telefone={telefone}
           emailInicial={emailCliente}
+          nomeInicial={nomeCliente}
+          trayCustomerId={trayCustomerId}
           onEnviada={onEnviada}
         />
       </DialogContent>
