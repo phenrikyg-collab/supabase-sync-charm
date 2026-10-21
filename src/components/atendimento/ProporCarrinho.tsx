@@ -961,7 +961,7 @@ export function FormularioProposta({
             ))}
           </select>
           {avisoFreteEnvio && (
-            <p className="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning-foreground">
+            <p className="rounded-md border border-warning/40 bg-warning/15 p-2 text-xs text-foreground">
               Frete informado é maior que zero
             </p>
           )}
