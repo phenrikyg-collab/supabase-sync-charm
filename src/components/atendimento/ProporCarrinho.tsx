@@ -783,6 +783,7 @@ export function FormularioProposta({
             onClick={() => {
               setFreteSelecionado(i);
               setFrete(o.gratis ? "0" : String(o.valor ?? 0));
+              setEnvio(o.gratis ? "FRETE GRÁTIS" : String(o.nome || o.transportadora || "").toUpperCase());
             }}
             className={`flex w-full items-center justify-between gap-2 rounded-md border p-2 text-left ${
               freteSelecionado === i ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
@@ -802,6 +803,31 @@ export function FormularioProposta({
           </button>
         ))}
       </div>
+
+      {!modoTexto && (
+        <div className="space-y-1.5">
+          <Label htmlFor="proposta-envio">Envio (preenchido pela opção de frete)</Label>
+          <select
+            id="proposta-envio"
+            value={envio}
+            onChange={(e) => setEnvio(e.target.value)}
+            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          >
+            <option value="" disabled>Selecione</option>
+            {envio !== "" && !(OPCOES_ENVIO as readonly string[]).includes(envio) && (
+              <option key={envio} value={envio}>{envio}</option>
+            )}
+            {OPCOES_ENVIO.map((o) => (
+              <option key={o} value={o}>{o}</option>
+            ))}
+          </select>
+          {avisoFreteEnvio && (
+            <p className="rounded-md border border-warning/40 bg-warning/15 p-2 text-xs text-foreground">
+              Frete informado é maior que zero
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
@@ -945,28 +971,6 @@ export function FormularioProposta({
           <span>{moeda(total)}</span>
         </div>
       </div>
-
-      {!modoTexto && (
-        <div className="space-y-1.5">
-          <Label htmlFor="proposta-envio">Envio</Label>
-          <select
-            id="proposta-envio"
-            value={envio}
-            onChange={(e) => setEnvio(e.target.value)}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            <option value="" disabled>Selecione</option>
-            {OPCOES_ENVIO.map((o) => (
-              <option key={o} value={o}>{o}</option>
-            ))}
-          </select>
-          {avisoFreteEnvio && (
-            <p className="rounded-md border border-warning/40 bg-warning/15 p-2 text-xs text-foreground">
-              Frete informado é maior que zero
-            </p>
-          )}
-        </div>
-      )}
 
       {semCadastroTray && (
         <div className="space-y-2 rounded-md border border-border p-3">
