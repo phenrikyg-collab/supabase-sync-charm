@@ -972,28 +972,6 @@ export function FormularioProposta({
         </div>
       </div>
 
-      {!modoTexto && (
-        <div className="space-y-1.5">
-          <Label htmlFor="proposta-envio">Envio</Label>
-          <select
-            id="proposta-envio"
-            value={envio}
-            onChange={(e) => setEnvio(e.target.value)}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          >
-            <option value="" disabled>Selecione</option>
-            {OPCOES_ENVIO.map((o) => (
-              <option key={o} value={o}>{o}</option>
-            ))}
-          </select>
-          {avisoFreteEnvio && (
-            <p className="rounded-md border border-warning/40 bg-warning/15 p-2 text-xs text-foreground">
-              Frete informado é maior que zero
-            </p>
-          )}
-        </div>
-      )}
-
       {semCadastroTray && (
         <div className="space-y-2 rounded-md border border-border p-3">
           <p className="text-sm font-medium">Dados para o pedido na Tray</p>
