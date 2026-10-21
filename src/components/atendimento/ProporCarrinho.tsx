@@ -783,6 +783,7 @@ export function FormularioProposta({
             onClick={() => {
               setFreteSelecionado(i);
               setFrete(o.gratis ? "0" : String(o.valor ?? 0));
+              setEnvio(o.gratis ? "FRETE GRÁTIS" : String(o.nome || o.transportadora || "").toUpperCase());
             }}
             className={`flex w-full items-center justify-between gap-2 rounded-md border p-2 text-left ${
               freteSelecionado === i ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
