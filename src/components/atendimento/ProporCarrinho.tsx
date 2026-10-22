@@ -263,16 +263,35 @@ export function FormularioProposta({
   const itensIncompletos = itens.filter((i) => !itemCompleto(i));
   const emailPreenchido = /\S+@\S+\.\S+/.test(email.trim());
   const emailValido = modoTexto ? emailPreenchido : email.trim() === "" || emailPreenchido;
+  const semCadastroTray = !modoTexto && !(trayCustomerId ?? contexto?.tray_customer_id);
+  const trayCampoValido = (k: keyof DadosTray, v: string): boolean => {
+    if (k === "complemento") return true;
+    const s = v.trim();
+    if (!s) return false;
+    switch (k) {
+      case "cpf": return soDigitos(s).length === 11;
+      case "cep": return soDigitos(s).length === 8;
+      case "email": return s.includes("@");
+      case "nome": return s.split(/\s+/).filter(Boolean).length >= 2;
+      default: return true;
+    }
+  };
+  const [trayTocados, setTrayTocados] = useState<Set<keyof DadosTray>>(new Set());
+  const trayCampoInvalido = (k: keyof DadosTray) =>
+    semCadastroTray && trayTocados.has(k) && !trayCampoValido(k, dadosTray[k]);
+  const dadosTrayIncompletos = (["nome", "cpf", "email", "telefone", "cep", "endereco", "numero", "bairro", "cidade", "uf"] as const).some(
+    (k) => !dadosTray[k].trim(),
+  );
+  const dadosTrayInvalidos = (["nome", "cpf", "email", "telefone", "cep", "endereco", "numero", "bairro", "cidade", "uf"] as const).some(
+    (k) => !trayCampoValido(k, dadosTray[k]),
+  );
   const valido =
     itens.length > 0 &&
     itensIncompletos.length === 0 &&
     emailValido &&
     (modoTexto || !!telefone) &&
-    (modoTexto || envio !== "");
-  const semCadastroTray = !modoTexto && !(trayCustomerId ?? contexto?.tray_customer_id);
-  const dadosTrayIncompletos = (["nome", "cpf", "email", "telefone", "cep", "endereco", "numero", "bairro", "cidade", "uf"] as const).some(
-    (k) => !dadosTray[k].trim(),
-  );
+    (modoTexto || envio !== "") &&
+    (!semCadastroTray || (!dadosTrayIncompletos && !dadosTrayInvalidos));
   const avisoFreteEnvio = (envio === "FRETE GRÁTIS" || envio === "RETIRAR NA LOJA") && paraNumero(frete) > 0;
 
   // Contexto da cliente (CEP, saldo e cupons). Recarrega quando o subtotal muda,
@@ -989,17 +1008,23 @@ export function FormularioProposta({
                   inputMode={k === "cpf" || k === "cep" || k === "telefone" ? "numeric" : undefined}
                   placeholder={k === "cpf" ? "000.000.000-00" : k === "cep" ? "00000-000" : undefined}
                   maxLength={k === "uf" ? 2 : undefined}
+                  aria-invalid={trayCampoInvalido(k) || undefined}
+                  className={trayCampoInvalido(k) ? "border-destructive focus-visible:ring-destructive" : undefined}
                   onChange={(e) => {
                     const v = e.target.value;
+                    setTrayTocados((t) => (t.has(k) ? t : new Set(t).add(k)));
                     setDado(k, k === "cpf" ? mascaraCpf(v) : k === "cep" ? mascaraCep(v) : k === "uf" ? v.toUpperCase() : v);
                   }}
                 />
               </div>
             ))}
           </div>
-          {dadosTrayIncompletos && (
-            <p className="text-xs text-muted-foreground">
-              Sem esses dados o pedido não entra sozinho na Tray, vai para a fila de inserir manual.
+          <p className="text-xs text-muted-foreground">
+            Obrigatório para o cadastro e a nota fiscal, mesmo na retirada na loja.
+          </p>
+          {(dadosTrayIncompletos || dadosTrayInvalidos) && (
+            <p className="text-xs font-medium text-destructive">
+              Preencha os dados da cliente (cadastro e nota fiscal)
             </p>
           )}
         </div>
