@@ -268,7 +268,8 @@ export function FormularioProposta({
     itensIncompletos.length === 0 &&
     emailValido &&
     (modoTexto || !!telefone) &&
-    (modoTexto || envio !== "");
+    (modoTexto || envio !== "") &&
+    (!semCadastroTray || (!dadosTrayIncompletos && !dadosTrayInvalidos));
   const semCadastroTray = !modoTexto && !(trayCustomerId ?? contexto?.tray_customer_id);
   const trayCampoValido = (k: keyof DadosTray, v: string): boolean => {
     if (k === "complemento") return true;
@@ -1007,17 +1008,23 @@ export function FormularioProposta({
                   inputMode={k === "cpf" || k === "cep" || k === "telefone" ? "numeric" : undefined}
                   placeholder={k === "cpf" ? "000.000.000-00" : k === "cep" ? "00000-000" : undefined}
                   maxLength={k === "uf" ? 2 : undefined}
+                  aria-invalid={trayCampoInvalido(k) || undefined}
+                  className={trayCampoInvalido(k) ? "border-destructive focus-visible:ring-destructive" : undefined}
                   onChange={(e) => {
                     const v = e.target.value;
+                    setTrayTocados((t) => (t.has(k) ? t : new Set(t).add(k)));
                     setDado(k, k === "cpf" ? mascaraCpf(v) : k === "cep" ? mascaraCep(v) : k === "uf" ? v.toUpperCase() : v);
                   }}
                 />
               </div>
             ))}
           </div>
-          {dadosTrayIncompletos && (
-            <p className="text-xs text-muted-foreground">
-              Sem esses dados o pedido não entra sozinho na Tray, vai para a fila de inserir manual.
+          <p className="text-xs text-muted-foreground">
+            Obrigatório para o cadastro e a nota fiscal, mesmo na retirada na loja.
+          </p>
+          {(dadosTrayIncompletos || dadosTrayInvalidos) && (
+            <p className="text-xs font-medium text-destructive">
+              Preencha os dados da cliente (cadastro e nota fiscal)
             </p>
           )}
         </div>
