@@ -270,8 +270,26 @@ export function FormularioProposta({
     (modoTexto || !!telefone) &&
     (modoTexto || envio !== "");
   const semCadastroTray = !modoTexto && !(trayCustomerId ?? contexto?.tray_customer_id);
+  const trayCampoValido = (k: keyof DadosTray, v: string): boolean => {
+    if (k === "complemento") return true;
+    const s = v.trim();
+    if (!s) return false;
+    switch (k) {
+      case "cpf": return soDigitos(s).length === 11;
+      case "cep": return soDigitos(s).length === 8;
+      case "email": return s.includes("@");
+      case "nome": return s.split(/\s+/).filter(Boolean).length >= 2;
+      default: return true;
+    }
+  };
+  const [trayTocados, setTrayTocados] = useState<Set<keyof DadosTray>>(new Set());
+  const trayCampoInvalido = (k: keyof DadosTray) =>
+    semCadastroTray && trayTocados.has(k) && !trayCampoValido(k, dadosTray[k]);
   const dadosTrayIncompletos = (["nome", "cpf", "email", "telefone", "cep", "endereco", "numero", "bairro", "cidade", "uf"] as const).some(
     (k) => !dadosTray[k].trim(),
+  );
+  const dadosTrayInvalidos = (["nome", "cpf", "email", "telefone", "cep", "endereco", "numero", "bairro", "cidade", "uf"] as const).some(
+    (k) => !trayCampoValido(k, dadosTray[k]),
   );
   const avisoFreteEnvio = (envio === "FRETE GRÁTIS" || envio === "RETIRAR NA LOJA") && paraNumero(frete) > 0;
 
