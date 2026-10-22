@@ -263,13 +263,6 @@ export function FormularioProposta({
   const itensIncompletos = itens.filter((i) => !itemCompleto(i));
   const emailPreenchido = /\S+@\S+\.\S+/.test(email.trim());
   const emailValido = modoTexto ? emailPreenchido : email.trim() === "" || emailPreenchido;
-  const valido =
-    itens.length > 0 &&
-    itensIncompletos.length === 0 &&
-    emailValido &&
-    (modoTexto || !!telefone) &&
-    (modoTexto || envio !== "") &&
-    (!semCadastroTray || (!dadosTrayIncompletos && !dadosTrayInvalidos));
   const semCadastroTray = !modoTexto && !(trayCustomerId ?? contexto?.tray_customer_id);
   const trayCampoValido = (k: keyof DadosTray, v: string): boolean => {
     if (k === "complemento") return true;
@@ -292,6 +285,13 @@ export function FormularioProposta({
   const dadosTrayInvalidos = (["nome", "cpf", "email", "telefone", "cep", "endereco", "numero", "bairro", "cidade", "uf"] as const).some(
     (k) => !trayCampoValido(k, dadosTray[k]),
   );
+  const valido =
+    itens.length > 0 &&
+    itensIncompletos.length === 0 &&
+    emailValido &&
+    (modoTexto || !!telefone) &&
+    (modoTexto || envio !== "") &&
+    (!semCadastroTray || (!dadosTrayIncompletos && !dadosTrayInvalidos));
   const avisoFreteEnvio = (envio === "FRETE GRÁTIS" || envio === "RETIRAR NA LOJA") && paraNumero(frete) > 0;
 
   // Contexto da cliente (CEP, saldo e cupons). Recarrega quando o subtotal muda,
