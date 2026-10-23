@@ -114,7 +114,7 @@ function FichaConversa({ conversaId }: { conversaId: string | number }) {
               </tr>)}</tbody>
             </table>
           </div>}
-          {!!detalhes.length && <div className="flex flex-wrap gap-x-3 gap-y-1">{detalhes.map(([rotulo, valor]) => <span key={rotulo}><strong>{rotulo}:</strong> {valor}</span>)}</div>}
+          {!!detalhes.length && <div className="flex flex-wrap gap-x-3 gap-y-1">{detalhes.map(([rotulo, valor]) => <span key={String(rotulo)}><strong>{rotulo}:</strong> {valor}</span>)}</div>}
           {ficha.objecao && <p><strong>Objeção:</strong> {ficha.objecao}</p>}
           {ficha.pendencia_da_loja && <p className="rounded border border-warning/20 bg-warning/10 p-2 text-warning"><strong>A loja ficou devendo:</strong> {ficha.pendencia_da_loja}</p>}
           {ficha.proximo_passo && <p className="rounded border border-primary/20 bg-primary/10 p-2"><strong>Próximo passo:</strong> {ficha.proximo_passo}</p>}
