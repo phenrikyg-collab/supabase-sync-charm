@@ -69,3 +69,4 @@
 - [ ] Validar salvamento de STORIES com dados reais (bloqueado: sessão disponível retorna ao login, sem acesso ao backend externo)
 - [x] Adicionar Encerrar troca no painel compartilhado, com motivos existentes e aviso; 18 testes passaram e verificação automática sem erros
 - [ ] Validar encerramento com solicitação real (bloqueado: /trocas-site retorna ao login, sem sessão no backend externo)
+- [ ] Adicionar ficha da cliente acima das mensagens do WhatsApp e testar leitura, geração e troca de conversa sem polling
