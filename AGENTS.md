@@ -1,5 +1,7 @@
 # Decisões técnicas
 
+- WhatsApp client fichas use a conversation-keyed component above the message scroller, with manual generation and no automatic refetch; this isolates conversation state and keeps messages accessible.
+
 - Request closure uses the existing Reversa RPC wrappers inside the shared PainelSolicitacao; this keeps closure actions and refresh behavior identical wherever the panel appears.
 
 - Os blocos prioritários do painel da cliente ficam em `PerfilCliente`, inclusive o histórico de trocas consultado pela conversa; assim a ordem é idêntica no painel fixo e na gaveta móvel.

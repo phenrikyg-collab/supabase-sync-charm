@@ -81,6 +81,7 @@ import type { ImperativePanelGroupHandle } from "react-resizable-panels";
 import { ProvadorBloco } from "@/components/atendimento/ProvadorBloco";
 import { FaixaAoVivo, PontoAoVivo, BotaoSomAoVivo, IndicadorTempoResposta, useAvisoAoVivo, lerSomAtivo, inicioEspera } from "@/components/atendimento/AoVivo";
 import { SeloAssunto } from "@/components/atendimento/SeloAssunto";
+import { FichaCliente } from "@/components/atendimento/FichaCliente";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { InboxEmail, useCaixasEmail, totalNaoLidasEmail } from "@/components/atendimento/InboxEmail";
 
@@ -3536,6 +3537,7 @@ export default function Atendimento() {
               />
               <CobrancasAbertas conversaId={conversaAtual.id} />
               <CobrancasConversa conversaId={conversaAtual.id} />
+              <FichaCliente conversaId={conversaAtual.id} />
 
               <ScrollArea
                 ref={areaMensagensRef}
