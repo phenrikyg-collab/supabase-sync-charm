@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import DOMPurify from "dompurify";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
-  Archive, ArrowLeft, CornerUpLeft, Inbox, Loader2, MailOpen, Paperclip, RotateCcw, Search, Send, Clock, AlertCircle,
+  Archive, ArrowLeft, FileText, Film, X, CornerUpLeft, Inbox, Loader2, MailOpen, Paperclip, RotateCcw, Search, Send, Clock, AlertCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { chamarRpc } from "@/lib/supabaseRpc";
@@ -17,6 +17,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 import { toast } from "sonner";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -103,6 +104,51 @@ function tamanho(b?: number | null) {
   if (b < 1024) return `${b} B`;
   if (b < 1048576) return `${Math.round(b / 1024)} KB`;
   return `${(b / 1048576).toFixed(1).replace(".", ",")} MB`;
+}
+
+export const LIMITE_ARQUIVO = 100 * 1024 * 1024;
+export const LIMITE_ANEXADO = 18 * 1024 * 1024;
+export const MAX_ANEXOS = 15;
+const ACCEPT_ANEXOS = "image/*,video/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.txt,.zip,.odt,.ods";
+
+export function caminhoEnvio(threadId: number, nome: string, agora = Date.now()) {
+  const limpo = nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9._-]/g, "_");
+  return `envio/${threadId}/${agora}_${limpo || "arquivo"}`;
+}
+
+type AnexoLocal = { chave: string; file: File; nome: string; mime: string; tamanho: number; previa: string | null; path: string | null; status: "subindo" | "ok" | "erro"; erro?: string };
+
+function useSignedUrl(path: string) {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let vivo = true;
+    supabase.storage.from("email-anexos").createSignedUrl(path, 300).then(({ data }) => { if (vivo) setUrl(data?.signedUrl ?? null); });
+    return () => { vivo = false; };
+  }, [path]);
+  return url;
+}
+
+function AnexoImagem({ a }: { a: Anexo }) {
+  const url = useSignedUrl(a.storage_path);
+  const [aberto, setAberto] = useState(false);
+  return (
+    <>
+      <button type="button" onClick={() => setAberto(true)} title={a.nome} aria-label={`Ver ${a.nome}`} className="h-24 w-24 overflow-hidden rounded-md border border-border bg-muted">
+        {url ? <img src={url} alt={a.nome} className="h-full w-full object-cover" /> : <Loader2 className="m-auto h-4 w-4 animate-spin text-muted-foreground" />}
+      </button>
+      <Dialog open={aberto} onOpenChange={setAberto}>
+        <DialogContent className="max-w-4xl p-2">
+          <DialogTitle className="sr-only">{a.nome}</DialogTitle>
+          {url && <img src={url} alt={a.nome} className="max-h-[80vh] w-full object-contain" />}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function AnexoVideo({ a }: { a: Anexo }) {
+  const url = useSignedUrl(a.storage_path);
+  return url ? <video src={url} controls preload="metadata" className="max-h-48 w-64 max-w-full rounded-md border border-border bg-muted" /> : <div className="flex h-24 w-40 items-center justify-center rounded-md border border-border bg-muted"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>;
 }
 
 async function abrirAnexo(a: Anexo) {
@@ -339,6 +385,12 @@ function ConversaEmailAberta({ threadId, onVoltar, onMudou }: { threadId: number
   const qc = useQueryClient();
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
+  const [anexos, setAnexos] = useState<AnexoLocal[]>([]);
+  const [arrastando, setArrastando] = useState(false);
+  const inputArquivo = useRef<HTMLInputElement>(null);
+  const subindo = anexos.some((a) => a.status === "subindo");
+  const prontos = anexos.filter((a) => a.status === "ok" && a.path);
+  const totalBytes = anexos.reduce((s, a) => s + a.tamanho, 0);
   const [salvando, setSalvando] = useState(false);
   const [responsavel, setResponsavel] = useState("");
   const [marcouNaoLida, setMarcouNaoLida] = useState(false);
@@ -375,19 +427,44 @@ function ConversaEmailAberta({ threadId, onVoltar, onMudou }: { threadId: number
     }
   };
 
+  const subirAnexo = async (item: AnexoLocal) => {
+    const path = caminhoEnvio(threadId, item.nome);
+    const { error } = await supabase.storage.from("email-anexos").upload(path, item.file, { contentType: item.file.type, upsert: false });
+    setAnexos((l) => l.map((a) => a.chave !== item.chave ? a : error ? { ...a, status: "erro", erro: error.message } : { ...a, status: "ok", path }));
+    if (error) toast.error(`Falha ao enviar ${item.nome}: ${error.message}`);
+  };
+
+  const adicionarArquivos = (files: File[]) => {
+    const novos: AnexoLocal[] = [];
+    let vagas = MAX_ANEXOS - anexos.length;
+    for (const f of files) {
+      if (f.size > LIMITE_ARQUIVO) { toast.error("Arquivo acima de 100 MB"); continue; }
+      if (vagas <= 0) { toast.error(`Máximo de ${MAX_ANEXOS} anexos por e-mail`); break; }
+      vagas--;
+      const nome = f.name || `imagem_${Date.now()}.${(f.type.split("/")[1] || "png")}`;
+      novos.push({ chave: `${Date.now()}_${Math.random()}`, file: f, nome, mime: f.type, tamanho: f.size, previa: f.type.startsWith("image/") && typeof URL.createObjectURL === "function" ? URL.createObjectURL(f) : null, path: null, status: "subindo" });
+    }
+    if (!novos.length) return;
+    setAnexos((l) => [...l, ...novos]);
+    novos.forEach((n) => { void subirAnexo(n); });
+  };
+
   const enviar = async () => {
     const corpo = texto.trim();
-    if (!corpo) return;
+    if ((!corpo && prontos.length === 0) || subindo) return;
     setEnviando(true);
     try {
-      const { data, error } = await supabase.functions.invoke("email-enviar", { body: { thread_id: threadId, texto: corpo } });
+      const body = { thread_id: threadId, texto: corpo, anexos: prontos.map((a) => ({ storage_path: a.path as string, nome: a.nome, mime: a.mime })) };
+      const { data, error } = await supabase.functions.invoke("email-enviar", { body });
       let msg = error?.message;
       if (error && "context" in error && (error as { context?: unknown }).context instanceof Response) {
         try { const j = await ((error as { context: Response }).context.clone().json()); msg = j?.erro || j?.error || msg; } catch { /* mantém */ }
       }
       if (error || !data?.ok) throw new Error(data?.erro || msg || "Não foi possível enviar");
-      toast.success("E-mail enviado");
+      const link = Number(data?.como_link) || 0;
+      toast.success(link > 0 ? `E-mail enviado (${link} arquivo(s) foram como link)` : "E-mail enviado");
       setTexto("");
+      setAnexos([]);
       await qc.invalidateQueries({ queryKey: ["inbox-email-thread", threadId] });
       onMudou();
     } catch (e) {
@@ -483,7 +560,7 @@ function ConversaEmailAberta({ threadId, onVoltar, onMudou }: { threadId: number
                   {nossa && <p className="mt-2 text-[11px] text-muted-foreground">+ assinatura da marca</p>}
                   {(m.anexos ?? []).length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      {(m.anexos ?? []).map((a) => (
+                      {(m.anexos ?? []).map((a) => a.mime?.startsWith("image/") ? <AnexoImagem key={a.id} a={a} /> : a.mime?.startsWith("video/") ? <AnexoVideo key={a.id} a={a} /> : (
                         <button key={a.id} type="button" onClick={() => abrirAnexo(a)} className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs hover:bg-muted">
                           <Paperclip className="h-3 w-3 shrink-0" /><span className="truncate">{a.nome}</span>
                           {a.tamanho ? <span className="shrink-0 text-muted-foreground">{tamanho(a.tamanho)}</span> : null}
@@ -505,20 +582,55 @@ function ConversaEmailAberta({ threadId, onVoltar, onMudou }: { threadId: number
 
       <footer className="space-y-2 border-t border-border bg-card p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
         <p className="truncate text-xs text-muted-foreground">Respondendo como: <span className="font-medium text-foreground">{t.caixa_endereco}</span></p>
-        <div className="flex items-end gap-2">
+        {anexos.length > 0 && (
+          <div className="space-y-1">
+            <ul className="flex flex-wrap gap-1.5" aria-label="Anexos da resposta">
+              {anexos.map((a) => (
+                <li key={a.chave} className={cn("flex max-w-[16rem] items-center gap-2 rounded-md border bg-background p-1.5 pr-1 text-xs", a.status === "erro" ? "border-danger/50" : "border-border")}>
+                  {a.previa ? <img src={a.previa} alt="" className="h-8 w-8 shrink-0 rounded object-cover" />
+                    : a.mime.startsWith("video/") ? <Film className="h-5 w-5 shrink-0 text-muted-foreground" />
+                    : a.mime === "application/pdf" ? <FileText className="h-5 w-5 shrink-0 text-muted-foreground" />
+                    : <Paperclip className="h-5 w-5 shrink-0 text-muted-foreground" />}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium">{a.nome}</p>
+                    <p className={cn("flex items-center gap-1", a.status === "erro" ? "text-danger" : "text-muted-foreground")}>
+                      {a.status === "subindo" && <Loader2 className="h-3 w-3 animate-spin" aria-label="Enviando arquivo" />}
+                      {a.status === "erro" ? "Falha no envio" : tamanho(a.tamanho)}
+                    </p>
+                  </div>
+                  <button type="button" onClick={() => setAnexos((l) => l.filter((x) => x.chave !== a.chave))} aria-label={`Remover ${a.nome}`} className="rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"><X className="h-3.5 w-3.5" /></button>
+                </li>
+              ))}
+            </ul>
+            {totalBytes > LIMITE_ANEXADO && <p className="text-xs text-muted-foreground">Arquivos grandes vão como link de download no e-mail (válido por 30 dias).</p>}
+          </div>
+        )}
+        <div
+          className={cn("flex items-end gap-2 rounded-md", arrastando && "ring-2 ring-primary/50")}
+          onDragOver={(e) => { if (e.dataTransfer?.types?.includes("Files")) { e.preventDefault(); setArrastando(true); } }}
+          onDragLeave={() => setArrastando(false)}
+          onDrop={(e) => { e.preventDefault(); setArrastando(false); adicionarArquivos(Array.from(e.dataTransfer?.files ?? [])); }}
+        >
           <Textarea
             value={texto}
             onChange={(e) => setTexto(e.target.value)}
             placeholder="Escreva a resposta"
             className="min-h-[80px] flex-1 resize-y"
             disabled={enviando}
+            onPaste={(e) => {
+              const imgs = Array.from(e.clipboardData?.files ?? []).filter((f) => f.type.startsWith("image/"));
+              if (imgs.length) { e.preventDefault(); adicionarArquivos(imgs); }
+            }}
             onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); void enviar(); } }}
           />
-          <Button onClick={enviar} disabled={enviando || !texto.trim()}>
+          <input ref={inputArquivo} type="file" multiple accept={ACCEPT_ANEXOS} className="hidden" data-testid="input-anexos"
+            onChange={(e) => { adicionarArquivos(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
+          <Button type="button" variant="outline" size="icon" onClick={() => inputArquivo.current?.click()} disabled={enviando} aria-label="Anexar arquivos"><Paperclip className="h-4 w-4" /></Button>
+          <Button onClick={enviar} disabled={enviando || subindo || (!texto.trim() && prontos.length === 0)}>
             {enviando ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> : <Send className="mr-1.5 h-4 w-4" />}Enviar
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">A assinatura da marca é adicionada automaticamente. Use **texto** para negrito e deixe uma linha em branco para separar parágrafos.</p>
+        <p className="text-xs text-muted-foreground">A assinatura da marca é adicionada automaticamente. Use **texto** para negrito, linha em branco para novo parágrafo. Você pode anexar ou arrastar arquivos.</p>
       </footer>
     </div>
   );
