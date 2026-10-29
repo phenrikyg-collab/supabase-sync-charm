@@ -7,7 +7,8 @@ vi.mock("@/lib/supabaseRpc", () => ({ chamarRpc: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({ supabase: { functions: { invoke: vi.fn() }, storage: { from: vi.fn() } } }));
 vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
 import { chamarRpc } from "@/lib/supabaseRpc";
-import { InboxEmail, totalNaoLidasEmail } from "@/components/atendimento/InboxEmail";
+import { supabase } from "@/integrations/supabase/client";
+import { InboxEmail, totalNaoLidasEmail, caminhoEnvio } from "@/components/atendimento/InboxEmail";
 
 const thread = {
   id: 12, caixa_id: 1, caixa: "SAC", caixa_endereco: "sac@example.com", assunto: "Pedido 123",
@@ -97,5 +98,38 @@ describe("Inbox E-mail", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Arquivar" })).not.toBeDisabled());
     fireEvent.click(screen.getByRole("button", { name: "Arquivar" }));
     await waitFor(() => expect(chamarRpc).toHaveBeenCalledWith("inbox_email_atualizar", { p_thread_id: 12, p_status: "arquivada", p_nao_lida: null, p_responsavel: null, p_categoria: null }));
+  });
+
+  describe("anexos na resposta", () => {
+    let liberar: () => void = () => {};
+    let upload: ReturnType<typeof vi.fn>;
+    beforeEach(() => {
+      upload = vi.fn(() => new Promise((r) => { liberar = () => r({ data: {}, error: null }); }));
+      vi.mocked(supabase.storage.from).mockReturnValue({ upload, createSignedUrl: vi.fn(async () => ({ data: { signedUrl: "x" }, error: null })) } as never);
+      vi.mocked(supabase.functions.invoke).mockResolvedValue({ data: { ok: true, como_link: 0 }, error: null } as never);
+    });
+    async function abrirEAnexar() {
+      const view = mount(); fireEvent.click(await screen.findByRole("button", { name: /Cliente teste/ }));
+      await screen.findByText("Texto novo");
+      const input = view.container.querySelector('[data-testid="input-anexos"]') as HTMLInputElement;
+      fireEvent.change(input, { target: { files: [new File(["abc"], "Relatório final.pdf", { type: "application/pdf" })] } });
+    }
+    it("gera caminho começando em envio/ com nome sanitizado", () => {
+      expect(caminhoEnvio(12, "Relatório final (1).pdf", 1000)).toBe("envio/12/1000_Relatorio_final__1_.pdf");
+    });
+    it("sobe com path envio/, bloqueia Enviar durante upload e envia só com anexo", async () => {
+      await abrirEAnexar();
+      await waitFor(() => expect(upload).toHaveBeenCalled());
+      const [path, , opts] = upload.mock.calls[0];
+      expect(String(path).startsWith("envio/12/")).toBe(true);
+      expect(opts).toEqual({ contentType: "application/pdf", upsert: false });
+      const enviar = screen.getByRole("button", { name: "Enviar" });
+      expect(enviar).toBeDisabled();
+      liberar();
+      await waitFor(() => expect(enviar).not.toBeDisabled());
+      fireEvent.click(enviar);
+      await waitFor(() => expect(supabase.functions.invoke).toHaveBeenCalledWith("email-enviar", { body: { thread_id: 12, texto: "", anexos: [{ storage_path: path, nome: "Relatório final.pdf", mime: "application/pdf" }] } }));
+      await waitFor(() => expect(screen.queryByText("Relatório final.pdf")).toBeNull());
+    });
   });
 });
