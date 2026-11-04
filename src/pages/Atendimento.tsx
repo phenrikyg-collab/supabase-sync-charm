@@ -910,7 +910,24 @@ export default function Atendimento() {
   const abaUrl = parametros.get("aba");
   useEffect(() => {
     if (abaUrl === "email") setAbaPagina("email");
+    else setAbaPagina("conversas");
   }, [abaUrl]);
+  /** Troca de aba sincronizada com o parâmetro ?aba da URL, para os links da lateral reabrirem a aba certa. */
+  const mudarAba = useCallback(
+    (valor: typeof abaPagina) => {
+      setAbaPagina(valor);
+      setParametros(
+        (atuais) => {
+          const proximos = new URLSearchParams(atuais);
+          if (valor === "email") proximos.set("aba", "email");
+          else proximos.delete("aba");
+          return proximos;
+        },
+        { replace: true },
+      );
+    },
+    [setParametros],
+  );
   const [abaKanban, setAbaKanban] = useState<"kanban" | "dashboard" | "followups" | "templates">("kanban");
   const [contagens, setContagens] = useState<Record<string, number>>({});
   const setContagem = (chave: string, n: number) =>
