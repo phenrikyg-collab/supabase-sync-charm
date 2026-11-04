@@ -44,7 +44,7 @@ export function FichaCliente({ conversaId }: { conversaId: string | number }) {
 }
 
 function FichaConversa({ conversaId }: { conversaId: string | number }) {
-  const [aberto, setAberto] = useState(true);
+  const [aberto, setAberto] = useState(false);
   const consulta = useQuery({
     queryKey: ["whatsapp-ficha", String(conversaId)],
     queryFn: async () => {
