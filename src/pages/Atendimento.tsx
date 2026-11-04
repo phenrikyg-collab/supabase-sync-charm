@@ -1257,6 +1257,7 @@ export default function Atendimento() {
     const restantes = new URLSearchParams(parametros);
     restantes.delete("conversa");
     restantes.delete("texto");
+    restantes.delete("aba");
     setParametros(restantes, { replace: true });
   }, [parametros, setParametros]);
 
@@ -2602,7 +2603,7 @@ export default function Atendimento() {
       entradaChatMobileRef.current = true;
     }
     setSelecionada(String(id));
-    setAbaPagina("conversas");
+    mudarAba("conversas");
     setListaSheet(false);
     setPerfilSheet(false);
     if (textoPronto) composerRef.current?.definirTexto(textoPronto);
@@ -2639,7 +2640,7 @@ export default function Atendimento() {
     <div className="font-whatsapp flex h-full w-full min-w-0 flex-col overflow-x-hidden overflow-y-hidden md:-m-6 md:h-[calc(100dvh-3.5rem)] md:w-[calc(100%+3rem)] md:max-w-[calc(100%+3rem)]">
       <Tabs
         value={abaPagina}
-        onValueChange={(v) => setAbaPagina(v as typeof abaPagina)}
+        onValueChange={(v) => mudarAba(v as typeof abaPagina)}
         className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden"
       >
         <div className={cn("flex h-11 w-full min-w-0 shrink-0 items-center gap-2 overflow-x-auto border-b border-border px-3", isMobile && selecionada && abaPagina === "conversas" && "hidden")}>
@@ -2698,7 +2699,7 @@ export default function Atendimento() {
                   key={valor}
                   variant={abaPagina === valor ? "secondary" : "ghost"}
                   className="h-11 justify-between px-3"
-                  onClick={() => { setAbaPagina(valor); setMaisAbasAberto(false); }}
+                  onClick={() => { mudarAba(valor); setMaisAbasAberto(false); }}
                 >
                   <span>{rotulo}</span>
                   {!!total && total > 0 && <span className="rounded-full bg-primary px-2 py-0.5 text-xs font-bold text-primary-foreground">{total}</span>}
@@ -2870,7 +2871,7 @@ export default function Atendimento() {
             <LinksPagamentoTab
               onAbrirConversa={(id) => {
                 setSelecionada(id);
-                setAbaPagina("conversas");
+                mudarAba("conversas");
               }}
             />
           )}
