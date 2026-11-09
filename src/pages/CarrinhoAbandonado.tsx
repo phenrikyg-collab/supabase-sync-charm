@@ -23,6 +23,7 @@ import { SeletorTemplatePadrao, useTemplatesContexto } from "@/components/recupe
 import { SegmentoBadge, CelulaItens, moeda } from "@/components/recuperacao/comum";
 import { formatarData } from "@/utils/formatters";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { BadgesContato, useContatoPorTelefones } from "@/components/atendimento/contatoTelefones";
 import { Loader2, ShoppingCart, Wallet, Receipt, MessageCircle } from "lucide-react";
 
@@ -39,9 +40,15 @@ type Carrinho = {
   dias_desde_abandono: number | null;
   segmento_rfm: string | null;
   rfm_score: number | null;
+  comprou_apos: boolean | null;
+  compra_apos_pedido: string | null;
+  compra_apos_data: string | null;
+  compra_apos_hora: string | null;
+  compra_apos_status: string | null;
+  compra_apos_valor: number | null;
 };
 
-type Chave = "nome" | "telefone" | "total" | "dias_desde_abandono" | "segmento_rfm" | "data_criacao";
+type Chave = "nome" | "telefone" | "total" | "dias_desde_abandono" | "segmento_rfm" | "data_criacao" | "comprou_apos";
 
 export function CarrinhoAbandonadoConteudo({
   onAbrirConversa,
@@ -67,6 +74,7 @@ export default function CarrinhoAbandonado({
   const [segmento, setSegmento] = useState("todos");
   const [valorMin, setValorMin] = useState("");
   const [valorMax, setValorMax] = useState("");
+  const [compraDepois, setCompraDepois] = useState("todas");
   const [somenteIdentificados, setSomenteIdentificados] = useState(false);
   const [filtroCaminho, setFiltroCaminho] = useState<Caminho | null>(null);
   const [contatadas, setContatadas] = useState<Set<string>>(new Set());
@@ -118,11 +126,13 @@ export default function CarrinhoAbandonado({
       }
       if (min != null && v < min) return false;
       if (max != null && v > max) return false;
+      if (compraDepois === "nao" && l.comprou_apos) return false;
+      if (compraDepois === "sim" && !l.comprou_apos) return false;
       if (filtroCaminho && caminhoDaLinha(l) !== filtroCaminho) return false;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linhas, segmento, valorMin, valorMax, filtroCaminho, caminhoDe]);
+  }, [linhas, segmento, valorMin, valorMax, compraDepois, filtroCaminho, caminhoDe]);
 
   const contagemCaminhos = useMemo(() => {
     const base: Record<Caminho, number> = {
@@ -145,6 +155,7 @@ export default function CarrinhoAbandonado({
     dias_desde_abandono: (l) => Number(l.dias_desde_abandono ?? 0),
     segmento_rfm: (l) => l.segmento_rfm ?? "",
     data_criacao: (l) => `${l.data_criacao ?? ""}T${String(l.hora_criacao ?? "00:00:00")}`,
+    comprou_apos: (l) => `${l.comprou_apos ? 1 : 0}|${l.compra_apos_data ?? ""}`,
   });
 
   const { contatoDe } = useContatoPorTelefones(useMemo(() => ordenadas.map((l) => l.telefone), [ordenadas]));
@@ -271,6 +282,19 @@ export default function CarrinhoAbandonado({
                 placeholder="R$ —"
               />
             </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Compra depois</Label>
+              <Select value={compraDepois} onValueChange={setCompraDepois}>
+                <SelectTrigger className="h-9 w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todas">Todas</SelectItem>
+                  <SelectItem value="nao">Não comprou depois</SelectItem>
+                  <SelectItem value="sim">Comprou depois</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
             <SeletorTemplatePadrao contexto="carrinho_abandonado" templates={templates} padrao={padrao} />
             <div className="flex items-center gap-2 pb-1">
               <Checkbox
@@ -300,6 +324,7 @@ export default function CarrinhoAbandonado({
                     <TableHead>Itens</TableHead>
                     <SortableHead campo="dias_desde_abandono" sort={sort} onSort={alternar} className="text-right">Dias</SortableHead>
                     <SortableHead campo="data_criacao" sort={sort} onSort={alternar}>Abandono</SortableHead>
+                    <SortableHead campo="comprou_apos" sort={sort} onSort={alternar}>Comprou depois?</SortableHead>
                     <SortableHead campo="segmento_rfm" sort={sort} onSort={alternar}>Segmento</SortableHead>
                     <TableHead>Recuperar</TableHead>
                   </TableRow>
@@ -322,6 +347,24 @@ export default function CarrinhoAbandonado({
                         <TableCell className="text-xs">
                           {formatarData(l.data_criacao)}
                           {l.hora_criacao && <span className="text-muted-foreground"> {String(l.hora_criacao).slice(0, 5)}</span>}
+                        </TableCell>
+                        <TableCell className="text-xs">
+                          {l.comprou_apos ? (
+                            <div>
+                              {String(l.compra_apos_status ?? "").toUpperCase() === "PENDENTE" ? (
+                                <Badge className="border-transparent bg-amber-100 text-amber-800 hover:bg-amber-100">Pedido pendente</Badge>
+                              ) : (
+                                <Badge className="border-transparent bg-emerald-100 text-emerald-800 hover:bg-emerald-100">Comprou</Badge>
+                              )}
+                              <div className="mt-1 text-[11px] text-muted-foreground">
+                                Pedido #{l.compra_apos_pedido ?? "-"} · {l.compra_apos_data ? `${l.compra_apos_data.slice(8, 10)}/${l.compra_apos_data.slice(5, 7)}` : "-"}
+                                {l.compra_apos_hora ? ` ${String(l.compra_apos_hora).slice(0, 5)}` : ""} · {moeda(l.compra_apos_valor)}
+                              </div>
+                              {l.compra_apos_status && <div className="text-[11px] text-muted-foreground">{l.compra_apos_status}</div>}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">Não</span>
+                          )}
                         </TableCell>
                         <TableCell><SegmentoBadge segmento={l.segmento_rfm} /></TableCell>
                         <TableCell>
