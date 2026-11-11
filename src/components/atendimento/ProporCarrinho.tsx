@@ -30,6 +30,7 @@ import {
 import { BuscaProduto, ProdutoPagamento, moedaBR, precoProduto } from "@/components/atendimento/BuscaProduto";
 import { SeletorVariante } from "@/components/atendimento/SeletorVariante";
 import { chamarRpc } from "@/lib/supabaseRpc";
+import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const PROPOR_CARRINHO_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/propor-carrinho`;
@@ -231,12 +232,14 @@ export function FormularioProposta({
       .then((r) => r.json())
       .then((j) => {
         if (!j || j.erro) return;
+        // Só completa o que ficou vazio; não apaga endereço/bairro/cidade/UF que já
+        // vieram preenchidos (ex.: pela function whatsapp-dados-cliente).
         setDadosTray((x) => ({
           ...x,
-          endereco: j.logradouro || x.endereco,
-          bairro: j.bairro || x.bairro,
-          cidade: j.localidade || x.cidade,
-          uf: j.uf || x.uf,
+          endereco: x.endereco || j.logradouro || "",
+          bairro: x.bairro || j.bairro || "",
+          cidade: x.cidade || j.localidade || "",
+          uf: x.uf || j.uf || "",
         }));
       })
       .catch(() => {});
