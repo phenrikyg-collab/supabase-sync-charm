@@ -264,6 +264,19 @@ export function FormularioProposta({
   const emailPreenchido = /\S+@\S+\.\S+/.test(email.trim());
   const emailValido = modoTexto ? emailPreenchido : email.trim() === "" || emailPreenchido;
   const semCadastroTray = !modoTexto && !(trayCustomerId ?? contexto?.tray_customer_id);
+  const TRAY_OBRIGATORIOS = ["nome", "cpf", "email", "telefone", "cep", "endereco", "numero", "bairro", "cidade", "uf"] as const;
+  const TRAY_ROTULO_FALTA: Record<(typeof TRAY_OBRIGATORIOS)[number], string> = {
+    nome: "nome e sobrenome",
+    cpf: "CPF",
+    email: "e-mail",
+    telefone: "celular",
+    cep: "CEP",
+    endereco: "endereço",
+    numero: "número",
+    bairro: "bairro",
+    cidade: "cidade",
+    uf: "UF",
+  };
   const trayCampoValido = (k: keyof DadosTray, v: string): boolean => {
     if (k === "complemento") return true;
     const s = v.trim();
@@ -276,22 +289,32 @@ export function FormularioProposta({
       default: return true;
     }
   };
+  /** Mensagem curta mostrada embaixo do campo inválido. */
+  const trayErroCampo = (k: keyof DadosTray, v: string): string | null => {
+    if (trayCampoValido(k, v)) return null;
+    switch (k) {
+      case "nome": return "Informe nome e sobrenome";
+      case "cpf": return "CPF precisa de 11 dígitos";
+      case "cep": return "CEP precisa de 8 dígitos";
+      case "email": return "E-mail inválido";
+      default: return "Obrigatório";
+    }
+  };
   const [trayTocados, setTrayTocados] = useState<Set<keyof DadosTray>>(new Set());
-  const trayCampoInvalido = (k: keyof DadosTray) =>
-    semCadastroTray && trayTocados.has(k) && !trayCampoValido(k, dadosTray[k]);
-  const dadosTrayIncompletos = (["nome", "cpf", "email", "telefone", "cep", "endereco", "numero", "bairro", "cidade", "uf"] as const).some(
-    (k) => !dadosTray[k].trim(),
-  );
-  const dadosTrayInvalidos = (["nome", "cpf", "email", "telefone", "cep", "endereco", "numero", "bairro", "cidade", "uf"] as const).some(
-    (k) => !trayCampoValido(k, dadosTray[k]),
-  );
+  // Campo inválido fica destacado sempre, mesmo sem ter sido tocado. Exceção: campo
+  // vazio e ainda não tocado não fica vermelho logo ao abrir; ele só entra na lista de faltas.
+  const trayCampoInvalido = (k: keyof DadosTray) => {
+    if (!semCadastroTray || trayCampoValido(k, dadosTray[k])) return false;
+    return trayTocados.has(k) || dadosTray[k].trim() !== "";
+  };
+  const dadosTrayFaltando = TRAY_OBRIGATORIOS.filter((k) => !trayCampoValido(k, dadosTray[k]));
   const valido =
     itens.length > 0 &&
     itensIncompletos.length === 0 &&
     emailValido &&
     (modoTexto || !!telefone) &&
     (modoTexto || envio !== "") &&
-    (!semCadastroTray || (!dadosTrayIncompletos && !dadosTrayInvalidos));
+    (!semCadastroTray || dadosTrayFaltando.length === 0);
   const avisoFreteEnvio = (envio === "FRETE GRÁTIS" || envio === "RETIRAR NA LOJA") && paraNumero(frete) > 0;
 
   // Contexto da cliente (CEP, saldo e cupons). Recarrega quando o subtotal muda,
@@ -1009,6 +1032,7 @@ export function FormularioProposta({
                   placeholder={k === "cpf" ? "000.000.000-00" : k === "cep" ? "00000-000" : undefined}
                   maxLength={k === "uf" ? 2 : undefined}
                   aria-invalid={trayCampoInvalido(k) || undefined}
+                  aria-describedby={trayCampoInvalido(k) ? `tray-${k}-erro` : undefined}
                   className={trayCampoInvalido(k) ? "border-destructive focus-visible:ring-destructive" : undefined}
                   onChange={(e) => {
                     const v = e.target.value;
@@ -1016,15 +1040,20 @@ export function FormularioProposta({
                     setDado(k, k === "cpf" ? mascaraCpf(v) : k === "cep" ? mascaraCep(v) : k === "uf" ? v.toUpperCase() : v);
                   }}
                 />
+                {trayCampoInvalido(k) && (
+                  <p id={`tray-${k}-erro`} className="text-xs text-destructive">
+                    {trayErroCampo(k, dadosTray[k])}
+                  </p>
+                )}
               </div>
             ))}
           </div>
           <p className="text-xs text-muted-foreground">
             Obrigatório para o cadastro e a nota fiscal, mesmo na retirada na loja.
           </p>
-          {(dadosTrayIncompletos || dadosTrayInvalidos) && (
+          {dadosTrayFaltando.length > 0 && (
             <p className="text-xs font-medium text-destructive">
-              Preencha os dados da cliente (cadastro e nota fiscal)
+              Falta para o cadastro e a nota fiscal: {dadosTrayFaltando.map((k) => TRAY_ROTULO_FALTA[k]).join(", ")}
             </p>
           )}
         </div>
