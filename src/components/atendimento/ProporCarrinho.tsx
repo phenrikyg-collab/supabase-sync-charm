@@ -1066,6 +1066,25 @@ export function FormularioProposta({
       {semCadastroTray && (
         <div className="space-y-2 rounded-md border border-border p-3">
           <p className="text-sm font-medium">Dados para o pedido na Tray</p>
+          {buscandoDadosCliente && (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" /> Buscando dados na conversa...
+            </p>
+          )}
+          {!buscandoDadosCliente && trayAutoPreenchidos.size > 0 && (
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Preenchido com os dados da conversa. Confira antes de enviar.
+              </p>
+              <button
+                type="button"
+                onClick={() => void buscarDadosCliente()}
+                className="shrink-0 text-xs font-medium text-primary underline-offset-2 hover:underline"
+              >
+                Buscar de novo
+              </button>
+            </div>
+          )}
           <div className="grid gap-2 sm:grid-cols-2">
             {([
               ["nome", "Nome completo"], ["cpf", "CPF"], ["email", "E-mail"], ["telefone", "Celular"], ["cep", "CEP"],
@@ -1082,10 +1101,19 @@ export function FormularioProposta({
                   maxLength={k === "uf" ? 2 : undefined}
                   aria-invalid={trayCampoInvalido(k) || undefined}
                   aria-describedby={trayCampoInvalido(k) ? `tray-${k}-erro` : undefined}
-                  className={trayCampoInvalido(k) ? "border-destructive focus-visible:ring-destructive" : undefined}
+                  className={[
+                    trayCampoInvalido(k) ? "border-destructive focus-visible:ring-destructive" : "",
+                    trayAutoPreenchidos.has(k) ? "bg-amber-50" : "",
+                  ].filter(Boolean).join(" ") || undefined}
                   onChange={(e) => {
                     const v = e.target.value;
                     setTrayTocados((t) => (t.has(k) ? t : new Set(t).add(k)));
+                    setTrayAutoPreenchidos((s) => {
+                      if (!s.has(k)) return s;
+                      const n = new Set(s);
+                      n.delete(k);
+                      return n;
+                    });
                     setDado(k, k === "cpf" ? mascaraCpf(v) : k === "cep" ? mascaraCep(v) : k === "uf" ? v.toUpperCase() : v);
                   }}
                 />
