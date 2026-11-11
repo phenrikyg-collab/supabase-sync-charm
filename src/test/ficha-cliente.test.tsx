@@ -20,8 +20,8 @@ function montar(id: number) {
   return { ...render(arvore(id)), arvore, client };
 }
 /** A ficha abre recolhida: o conteúdo só aparece depois de clicar no título. */
-function abrir() {
-  fireEvent.click(screen.getByRole("button", { name: "Ficha da cliente" }));
+async function abrir() {
+  fireEvent.click(await screen.findByRole("button", { name: "Ficha da cliente" }));
 }
 beforeEach(() => vi.resetAllMocks());
 
