@@ -30,6 +30,7 @@ import {
 import { BuscaProduto, ProdutoPagamento, moedaBR, precoProduto } from "@/components/atendimento/BuscaProduto";
 import { SeletorVariante } from "@/components/atendimento/SeletorVariante";
 import { chamarRpc } from "@/lib/supabaseRpc";
+import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
 const EXTERNAL_SUPABASE_URL = "https://ezdtulcrqzmgocamjwwl.supabase.co";
 const PROPOR_CARRINHO_URL = `${EXTERNAL_SUPABASE_URL}/functions/v1/propor-carrinho`;
@@ -222,6 +223,8 @@ export function FormularioProposta({
     cep: "", endereco: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "",
   });
   const setDado = (k: keyof DadosTray, v: string) => setDadosTray((d) => ({ ...d, [k]: v }));
+  const dadosTrayRef = useRef(dadosTray);
+  dadosTrayRef.current = dadosTray;
   const cepTrayBuscado = useRef("");
   useEffect(() => {
     const d = soDigitos(dadosTray.cep);
@@ -231,12 +234,14 @@ export function FormularioProposta({
       .then((r) => r.json())
       .then((j) => {
         if (!j || j.erro) return;
+        // Só completa o que ficou vazio; não apaga endereço/bairro/cidade/UF que já
+        // vieram preenchidos (ex.: pela function whatsapp-dados-cliente).
         setDadosTray((x) => ({
           ...x,
-          endereco: j.logradouro || x.endereco,
-          bairro: j.bairro || x.bairro,
-          cidade: j.localidade || x.cidade,
-          uf: j.uf || x.uf,
+          endereco: x.endereco || j.logradouro || "",
+          bairro: x.bairro || j.bairro || "",
+          cidade: x.cidade || j.localidade || "",
+          uf: x.uf || j.uf || "",
         }));
       })
       .catch(() => {});
@@ -301,6 +306,53 @@ export function FormularioProposta({
     }
   };
   const [trayTocados, setTrayTocados] = useState<Set<keyof DadosTray>>(new Set());
+  const trayTocadosRef = useRef(trayTocados);
+  trayTocadosRef.current = trayTocados;
+
+  // Preenchimento automático dos dados da Tray a partir da conversa (whatsapp-dados-cliente).
+  // Roda uma vez por conversa; "Buscar de novo" reaplica as mesmas regras.
+  const [buscandoDadosCliente, setBuscandoDadosCliente] = useState(false);
+  const [trayAutoPreenchidos, setTrayAutoPreenchidos] = useState<Set<keyof DadosTray>>(new Set());
+  const dadosClienteBuscadosRef = useRef<string | null>(null);
+  const buscarDadosCliente = async () => {
+    if (!conversaId || buscandoDadosCliente) return;
+    setBuscandoDadosCliente(true);
+    try {
+      const r = await invokeEdgeFunction("whatsapp-dados-cliente", { conversa_id: conversaId });
+      const dados = (r?.dados ?? {}) as Partial<Record<keyof DadosTray, string | null>>;
+      const atual = dadosTrayRef.current;
+      const prox = { ...atual };
+      const preenchidos = new Set<keyof DadosTray>();
+      (Object.keys(prox) as (keyof DadosTray)[]).forEach((k) => {
+        const v = dados[k];
+        if (v == null || String(v).trim() === "") return;
+        // Nunca sobrescreve campo que a consultora digitou ou editou.
+        if (trayTocadosRef.current.has(k)) return;
+        // Só preenche o que está vazio ou inválido (ex.: nome só com o primeiro nome).
+        if (trayCampoValido(k, atual[k])) return;
+        const bruto = String(v);
+        prox[k] = k === "cpf" ? mascaraCpf(bruto) : k === "cep" ? mascaraCep(bruto) : k === "uf" ? bruto.toUpperCase() : bruto;
+        if (prox[k] !== atual[k]) preenchidos.add(k);
+      });
+      if (preenchidos.size > 0) {
+        setDadosTray(prox);
+        setTrayAutoPreenchidos((s) => new Set([...s, ...preenchidos]));
+      }
+    } catch {
+      // silencioso: a consultora segue digitando normalmente
+    } finally {
+      setBuscandoDadosCliente(false);
+    }
+  };
+  useEffect(() => {
+    if (!semCadastroTray || !conversaId) return;
+    const chave = String(conversaId);
+    if (dadosClienteBuscadosRef.current === chave) return;
+    dadosClienteBuscadosRef.current = chave;
+    void buscarDadosCliente();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [semCadastroTray, conversaId]);
+
   // Campo inválido fica destacado sempre, mesmo sem ter sido tocado. Exceção: campo
   // vazio e ainda não tocado não fica vermelho logo ao abrir; ele só entra na lista de faltas.
   const trayCampoInvalido = (k: keyof DadosTray) => {
@@ -1017,6 +1069,25 @@ export function FormularioProposta({
       {semCadastroTray && (
         <div className="space-y-2 rounded-md border border-border p-3">
           <p className="text-sm font-medium">Dados para o pedido na Tray</p>
+          {buscandoDadosCliente && (
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Loader2 className="h-3 w-3 animate-spin" /> Buscando dados na conversa...
+            </p>
+          )}
+          {!buscandoDadosCliente && trayAutoPreenchidos.size > 0 && (
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Preenchido com os dados da conversa. Confira antes de enviar.
+              </p>
+              <button
+                type="button"
+                onClick={() => void buscarDadosCliente()}
+                className="shrink-0 text-xs font-medium text-primary underline-offset-2 hover:underline"
+              >
+                Buscar de novo
+              </button>
+            </div>
+          )}
           <div className="grid gap-2 sm:grid-cols-2">
             {([
               ["nome", "Nome completo"], ["cpf", "CPF"], ["email", "E-mail"], ["telefone", "Celular"], ["cep", "CEP"],
@@ -1033,10 +1104,19 @@ export function FormularioProposta({
                   maxLength={k === "uf" ? 2 : undefined}
                   aria-invalid={trayCampoInvalido(k) || undefined}
                   aria-describedby={trayCampoInvalido(k) ? `tray-${k}-erro` : undefined}
-                  className={trayCampoInvalido(k) ? "border-destructive focus-visible:ring-destructive" : undefined}
+                  className={[
+                    trayCampoInvalido(k) ? "border-destructive focus-visible:ring-destructive" : "",
+                    trayAutoPreenchidos.has(k) ? "bg-amber-50" : "",
+                  ].filter(Boolean).join(" ") || undefined}
                   onChange={(e) => {
                     const v = e.target.value;
                     setTrayTocados((t) => (t.has(k) ? t : new Set(t).add(k)));
+                    setTrayAutoPreenchidos((s) => {
+                      if (!s.has(k)) return s;
+                      const n = new Set(s);
+                      n.delete(k);
+                      return n;
+                    });
                     setDado(k, k === "cpf" ? mascaraCpf(v) : k === "cep" ? mascaraCep(v) : k === "uf" ? v.toUpperCase() : v);
                   }}
                 />
