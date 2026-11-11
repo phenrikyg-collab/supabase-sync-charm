@@ -223,6 +223,8 @@ export function FormularioProposta({
     cep: "", endereco: "", numero: "", complemento: "", bairro: "", cidade: "", uf: "",
   });
   const setDado = (k: keyof DadosTray, v: string) => setDadosTray((d) => ({ ...d, [k]: v }));
+  const dadosTrayRef = useRef(dadosTray);
+  dadosTrayRef.current = dadosTray;
   const cepTrayBuscado = useRef("");
   useEffect(() => {
     const d = soDigitos(dadosTray.cep);
@@ -318,23 +320,24 @@ export function FormularioProposta({
     try {
       const r = await invokeEdgeFunction("whatsapp-dados-cliente", { conversa_id: conversaId });
       const dados = (r?.dados ?? {}) as Partial<Record<keyof DadosTray, string | null>>;
+      const atual = dadosTrayRef.current;
+      const prox = { ...atual };
       const preenchidos = new Set<keyof DadosTray>();
-      setDadosTray((atual) => {
-        const prox = { ...atual };
-        (Object.keys(prox) as (keyof DadosTray)[]).forEach((k) => {
-          const v = dados[k];
-          if (v == null || String(v).trim() === "") return;
-          // Nunca sobrescreve campo que a consultora digitou ou editou.
-          if (trayTocadosRef.current.has(k)) return;
-          // Só preenche o que está vazio ou inválido (ex.: nome só com o primeiro nome).
-          if (trayCampoValido(k, atual[k])) return;
-          const bruto = String(v);
-          prox[k] = k === "cpf" ? mascaraCpf(bruto) : k === "cep" ? mascaraCep(bruto) : k === "uf" ? bruto.toUpperCase() : bruto;
-          if (prox[k] !== atual[k]) preenchidos.add(k);
-        });
-        return prox;
+      (Object.keys(prox) as (keyof DadosTray)[]).forEach((k) => {
+        const v = dados[k];
+        if (v == null || String(v).trim() === "") return;
+        // Nunca sobrescreve campo que a consultora digitou ou editou.
+        if (trayTocadosRef.current.has(k)) return;
+        // Só preenche o que está vazio ou inválido (ex.: nome só com o primeiro nome).
+        if (trayCampoValido(k, atual[k])) return;
+        const bruto = String(v);
+        prox[k] = k === "cpf" ? mascaraCpf(bruto) : k === "cep" ? mascaraCep(bruto) : k === "uf" ? bruto.toUpperCase() : bruto;
+        if (prox[k] !== atual[k]) preenchidos.add(k);
       });
-      if (preenchidos.size > 0) setTrayAutoPreenchidos((s) => new Set([...s, ...preenchidos]));
+      if (preenchidos.size > 0) {
+        setDadosTray(prox);
+        setTrayAutoPreenchidos((s) => new Set([...s, ...preenchidos]));
+      }
     } catch {
       // silencioso: a consultora segue digitando normalmente
     } finally {
