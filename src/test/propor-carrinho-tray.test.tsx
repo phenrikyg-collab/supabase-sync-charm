@@ -126,3 +126,87 @@ describe("Dados para o pedido na Tray", () => {
     expect(screen.queryByText("Obrigatório")).not.toBeInTheDocument();
   });
 });
+
+describe("Preenchimento automático dos dados da Tray", () => {
+  const dadosFunction = {
+    nome: "Michelle Souza Lima",
+    cpf: "12345678901",
+    email: "michelle@exemplo.com",
+    cep: "01310100",
+    endereco: "Avenida Paulista",
+    numero: "100",
+    complemento: null,
+    bairro: "Bela Vista",
+    cidade: "São Paulo",
+    uf: "sp",
+  };
+
+  it("preenche campos vazios ou inválidos não tocados, com máscaras de CPF e CEP", async () => {
+    vi.mocked(invokeEdgeFunction).mockResolvedValue({ ok: true, dados: dadosFunction, fonte: { conversa: ["nome"], cadastro: true } } as never);
+    montar({ nomeInicial: "Michelle" });
+    await waitFor(() => expect(screen.getByLabelText("Nome completo")).toHaveValue("Michelle Souza Lima"));
+    expect(screen.getByLabelText("CPF")).toHaveValue("123.456.789-01");
+    expect(screen.getByLabelText("CEP")).toHaveValue("01310-100");
+    expect(screen.getByLabelText("UF")).toHaveValue("SP");
+    expect(screen.getByLabelText("Complemento")).toHaveValue("");
+    expect(invokeEdgeFunction).toHaveBeenCalledWith("whatsapp-dados-cliente", { conversa_id: 1 });
+    expect(screen.getByText("Preenchido com os dados da conversa. Confira antes de enviar.")).toBeInTheDocument();
+  });
+
+  it("nunca sobrescreve campo que a consultora digitou", async () => {
+    let resolver: (v: unknown) => void = () => {};
+    vi.mocked(invokeEdgeFunction).mockImplementation(
+      () => new Promise((res) => { resolver = res; }) as never,
+    );
+    montar({ nomeInicial: "Michelle" });
+    // a consultora digita o bairro enquanto a busca ainda está em andamento
+    fireEvent.change(screen.getByLabelText("Bairro"), { target: { value: "Centro" } });
+    resolver({ ok: true, dados: dadosFunction, fonte: { conversa: [], cadastro: true } });
+    await waitFor(() => expect(screen.getByLabelText("Nome completo")).toHaveValue("Michelle Souza Lima"));
+    expect(screen.getByLabelText("Bairro")).toHaveValue("Centro");
+  });
+
+  it("destaca de leve o campo preenchido até a consultora editar", async () => {
+    vi.mocked(invokeEdgeFunction).mockResolvedValue({ ok: true, dados: dadosFunction, fonte: { conversa: [], cadastro: true } } as never);
+    montar();
+    await waitFor(() => expect(screen.getByLabelText("CPF")).toHaveValue("123.456.789-01"));
+    const cpf = screen.getByLabelText("CPF");
+    expect(cpf.className).toContain("bg-amber-50");
+    fireEvent.change(cpf, { target: { value: "123.456.789-02" } });
+    expect(screen.getByLabelText("CPF").className).not.toContain("bg-amber-50");
+  });
+
+  it("mostra o spinner enquanto busca e some depois", async () => {
+    let resolver: (v: unknown) => void = () => {};
+    vi.mocked(invokeEdgeFunction).mockImplementation(
+      () => new Promise((res) => { resolver = res; }) as never,
+    );
+    montar();
+    expect(screen.getByText("Buscando dados na conversa...")).toBeInTheDocument();
+    resolver({ ok: true, dados: {}, fonte: { conversa: [], cadastro: false } });
+    await waitFor(() => expect(screen.queryByText("Buscando dados na conversa...")).not.toBeInTheDocument());
+    // nada foi preenchido: nenhum aviso aparece
+    expect(screen.queryByText(/Preenchido com os dados da conversa/)).not.toBeInTheDocument();
+  });
+
+  it("erro na function é silencioso e não bloqueia a digitação", async () => {
+    vi.mocked(invokeEdgeFunction).mockRejectedValue(new Error("falhou") as never);
+    montar();
+    await waitFor(() => expect(screen.queryByText("Buscando dados na conversa...")).not.toBeInTheDocument());
+    expect(screen.queryByText(/Preenchido com os dados da conversa/)).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("CPF"), { target: { value: "12345678901" } });
+    expect(screen.getByLabelText("CPF")).toHaveValue("123.456.789-01");
+  });
+
+  it("Buscar de novo chama a function de novo aplicando as mesmas regras", async () => {
+    vi.mocked(invokeEdgeFunction).mockResolvedValue({ ok: true, dados: dadosFunction, fonte: { conversa: [], cadastro: true } } as never);
+    montar();
+    await waitFor(() => expect(screen.getByText("Buscar de novo")).toBeInTheDocument());
+    // consultora editou o nome; a nova busca não pode sobrescrever
+    fireEvent.change(screen.getByLabelText("Nome completo"), { target: { value: "Michelle S. Lima" } });
+    vi.mocked(invokeEdgeFunction).mockClear();
+    fireEvent.click(screen.getByText("Buscar de novo"));
+    await waitFor(() => expect(invokeEdgeFunction).toHaveBeenCalledWith("whatsapp-dados-cliente", { conversa_id: 1 }));
+    expect(screen.getByLabelText("Nome completo")).toHaveValue("Michelle S. Lima");
+  });
+});
