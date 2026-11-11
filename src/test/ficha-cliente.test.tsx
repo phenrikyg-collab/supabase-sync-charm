@@ -30,7 +30,7 @@ describe("Ficha da cliente", () => {
     vi.mocked(chamarRpc).mockResolvedValue({ data: dados, error: null });
     const { client } = montar(42);
     expect(screen.queryByText(dados.ficha?.resumo ?? "")).not.toBeInTheDocument();
-    abrir();
+    await abrir();
     await screen.findByText(dados.ficha?.resumo ?? "");
     expect(chamarRpc).toHaveBeenCalledWith("whatsapp_ficha", { p_conversa: 42 });
     const query = client.getQueryCache().getAll()[0];
@@ -47,18 +47,18 @@ describe("Ficha da cliente", () => {
     expect(screen.getByRole("button", { name: "Gerar ficha" })).toBeDisabled();
     expect(chamarRpc).toHaveBeenCalledTimes(1);
     terminar?.({});
-    abrir();
+    await abrir();
     await screen.findByText(dados.ficha?.resumo ?? "");
     expect(chamarRpc).toHaveBeenCalledTimes(2);
   });
   it("recarrega e abre a ficha ao trocar de conversa sem mostrar dados anteriores", async () => {
     vi.mocked(chamarRpc).mockResolvedValueOnce({ data: dados, error: null }).mockResolvedValueOnce({ data: { ficha: { resumo: "Outra cliente" } }, error: null });
     const { rerender, arvore } = montar(44);
-    abrir();
+    await abrir();
     await screen.findByText(dados.ficha?.resumo ?? "");
     rerender(arvore(45));
     expect(screen.queryByText("Outra cliente")).not.toBeInTheDocument();
-    abrir();
+    await abrir();
     await screen.findByText("Outra cliente");
     expect(screen.queryByText(dados.ficha?.resumo ?? "")).not.toBeInTheDocument();
     expect(chamarRpc).toHaveBeenLastCalledWith("whatsapp_ficha", { p_conversa: 45 });
@@ -67,7 +67,7 @@ describe("Ficha da cliente", () => {
     vi.mocked(chamarRpc).mockResolvedValue({ data: dados, error: null });
     vi.mocked(invokeEdgeFunction).mockRejectedValue(new Error("Falha na geração"));
     montar(46);
-    abrir();
+    await abrir();
     fireEvent.click(await screen.findByRole("button", { name: "Atualizar ficha" }));
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith("Falha na geração"));
     expect(chamarRpc).toHaveBeenCalledTimes(1);
