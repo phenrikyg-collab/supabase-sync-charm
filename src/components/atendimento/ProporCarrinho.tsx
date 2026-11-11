@@ -304,6 +304,52 @@ export function FormularioProposta({
     }
   };
   const [trayTocados, setTrayTocados] = useState<Set<keyof DadosTray>>(new Set());
+  const trayTocadosRef = useRef(trayTocados);
+  trayTocadosRef.current = trayTocados;
+
+  // Preenchimento automático dos dados da Tray a partir da conversa (whatsapp-dados-cliente).
+  // Roda uma vez por conversa; "Buscar de novo" reaplica as mesmas regras.
+  const [buscandoDadosCliente, setBuscandoDadosCliente] = useState(false);
+  const [trayAutoPreenchidos, setTrayAutoPreenchidos] = useState<Set<keyof DadosTray>>(new Set());
+  const dadosClienteBuscadosRef = useRef<string | null>(null);
+  const buscarDadosCliente = async () => {
+    if (!conversaId || buscandoDadosCliente) return;
+    setBuscandoDadosCliente(true);
+    try {
+      const r = await invokeEdgeFunction("whatsapp-dados-cliente", { conversa_id: conversaId });
+      const dados = (r?.dados ?? {}) as Partial<Record<keyof DadosTray, string | null>>;
+      const preenchidos = new Set<keyof DadosTray>();
+      setDadosTray((atual) => {
+        const prox = { ...atual };
+        (Object.keys(prox) as (keyof DadosTray)[]).forEach((k) => {
+          const v = dados[k];
+          if (v == null || String(v).trim() === "") return;
+          // Nunca sobrescreve campo que a consultora digitou ou editou.
+          if (trayTocadosRef.current.has(k)) return;
+          // Só preenche o que está vazio ou inválido (ex.: nome só com o primeiro nome).
+          if (trayCampoValido(k, atual[k])) return;
+          const bruto = String(v);
+          prox[k] = k === "cpf" ? mascaraCpf(bruto) : k === "cep" ? mascaraCep(bruto) : k === "uf" ? bruto.toUpperCase() : bruto;
+          if (prox[k] !== atual[k]) preenchidos.add(k);
+        });
+        return prox;
+      });
+      if (preenchidos.size > 0) setTrayAutoPreenchidos((s) => new Set([...s, ...preenchidos]));
+    } catch {
+      // silencioso: a consultora segue digitando normalmente
+    } finally {
+      setBuscandoDadosCliente(false);
+    }
+  };
+  useEffect(() => {
+    if (!semCadastroTray || !conversaId) return;
+    const chave = String(conversaId);
+    if (dadosClienteBuscadosRef.current === chave) return;
+    dadosClienteBuscadosRef.current = chave;
+    void buscarDadosCliente();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [semCadastroTray, conversaId]);
+
   // Campo inválido fica destacado sempre, mesmo sem ter sido tocado. Exceção: campo
   // vazio e ainda não tocado não fica vermelho logo ao abrir; ele só entra na lista de faltas.
   const trayCampoInvalido = (k: keyof DadosTray) => {
