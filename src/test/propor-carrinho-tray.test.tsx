@@ -1,10 +1,12 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FormularioProposta } from "@/components/atendimento/ProporCarrinho";
 import { chamarRpc } from "@/lib/supabaseRpc";
+import { invokeEdgeFunction } from "@/lib/edgeFunctions";
 
 vi.mock("@/lib/supabaseRpc", () => ({ chamarRpc: vi.fn() }));
+vi.mock("@/lib/edgeFunctions", () => ({ invokeEdgeFunction: vi.fn() }));
 vi.mock("@/hooks/use-toast", () => ({ toast: vi.fn() }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: { functions: { invoke: vi.fn() }, storage: { from: () => ({ upload: vi.fn() }) } },
@@ -63,6 +65,7 @@ function montar(props: { nomeInicial?: string; telefone?: string; trayCustomerId
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(chamarRpc).mockResolvedValue({ data: null, error: null } as never);
+  vi.mocked(invokeEdgeFunction).mockResolvedValue({ ok: true, dados: {}, fonte: { conversa: [], cadastro: false } } as never);
   global.fetch = vi.fn().mockResolvedValue({ json: async () => ({}) }) as never;
 });
 
