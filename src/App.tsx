@@ -29,6 +29,7 @@ import Producao from "./pages/Producao";
 import Financeiro from "./pages/Financeiro";
 import TransacoesSite from "./pages/TransacoesSite";
 import VindiYapay from "./pages/VindiYapay";
+import Pagarme from "./pages/Pagarme";
 import BancoInter from "./pages/BancoInter";
 import ConciliacaoPixWhatsApp from "./pages/ConciliacaoPixWhatsApp";
 import ProvaSocial from "./pages/ProvaSocial";
@@ -313,6 +314,7 @@ const AppRoutes = () => {
               <Route path="/faturas" element={<Faturas />} />
               <Route path="/transacoes-site" element={<TransacoesSite />} />
               <Route path="/vindi-yapay" element={<VindiYapay />} />
+              <Route path="/pagarme" element={<Pagarme />} />
               <Route path="/banco-inter" element={<BancoInter />} />
               <Route path="/conciliacao-pix-whatsapp" element={<ConciliacaoPixWhatsApp />} />
               <Route path="/prova-social" element={<ProvaSocial />} />

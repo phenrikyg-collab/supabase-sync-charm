@@ -174,6 +174,7 @@ const moduleGroups: ModuleGroup[] = [
       { title: "Importar Extrato", url: "/importar-extrato", icon: Upload },
       { title: "Banco Inter", url: "/banco-inter", icon: Banknote },
       { title: "Vindi / Yapay", url: "/vindi-yapay", icon: CreditCard },
+      { title: "Pagar.me", url: "/pagarme", icon: CreditCard },
       { title: "Transações do Site", url: "/transacoes-site", icon: ShoppingCart },
       { title: "Conciliação Pix WhatsApp", url: "/conciliacao-pix-whatsapp", icon: CheckCircle2 },
       { title: "Orçamento", url: "/orcamento", icon: Target },
