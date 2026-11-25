@@ -24,7 +24,7 @@ export function msgErro(e: any): string {
 
 async function chamar(body: Row): Promise<Row> {
   const r = await invokeEdgeFunction(FN, body);
-  if (r && r.ok === false) {
+  if (r && r.ok === false && (r.resultado === undefined || r.resultado === null)) {
     const err: any = new Error(r.erro || r.error || "Erro na operação");
     if (r.status === 403 || r.codigo === 403) err.status = 403;
     throw err;
