@@ -18,6 +18,7 @@ import { SeletorDias } from "@/components/financeiro/SeletorDias";
 import { brl, pctBr, num, dataCurta } from "@/lib/financeiroFormat";
 import { formatarData, formatarDataHora } from "@/lib/dataBr";
 import { chamarRpc } from "@/lib/supabaseRpc";
+import { EstornosPagarme } from "@/components/financeiro/EstornosPagarme";
 import { ArrowDown, ArrowUp, CheckCircle2, Copy, ExternalLink, MessageCircle, RefreshCw } from "lucide-react";
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RTooltip, Legend,
@@ -184,6 +185,7 @@ export default function Pagarme() {
           <TabsTrigger value="recusas">Recusas</TabsTrigger>
           <TabsTrigger value="links">Links WhatsApp</TabsTrigger>
           <TabsTrigger value="conciliacao">Conciliação</TabsTrigger>
+          <TabsTrigger value="estornos">Estornos</TabsTrigger>
           <TabsTrigger value="config">Configuração</TabsTrigger>
         </TabsList>
 
@@ -382,6 +384,10 @@ export default function Pagarme() {
             { k: "id", t: "ID" }, { k: "data", t: "Data", f: fData }, { k: "valor", t: "Valor", r: true, f: fBrl }, { k: "status", t: "Status" },
             { k: "conferido_safra", t: "Conferido no Safra", f: (v) => v === true ? <Badge variant="outline" className="border-success/30 bg-success/15 text-success">Sim</Badge> : v === false ? <Badge variant="outline" className="border-warning/30 bg-warning/15 text-warning">Não</Badge> : "-" },
           ]} />
+        </TabsContent>
+
+        <TabsContent value="estornos" className="space-y-6">
+          <EstornosPagarme />
         </TabsContent>
 
         <TabsContent value="config" className="space-y-6">

@@ -67,7 +67,9 @@ export async function invokeEdgeFunction(
     } catch {
       errorMsg = text || `Erro ${response.status}`;
     }
-    throw new Error(errorMsg);
+    const err: any = new Error(errorMsg);
+    err.status = response.status;
+    throw err;
   }
 
   return response.json();
