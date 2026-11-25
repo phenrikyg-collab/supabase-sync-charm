@@ -68,6 +68,19 @@ function Secao({ titulo, children, extra }: { titulo: string; children: React.Re
   );
 }
 
+function BadgeTray({ r }: { r: Row }) {
+  const cheio = (v: any) => v !== null && v !== undefined && v !== "";
+  if (cheio(r.tray_erro)) return <Badge variant="outline" title={String(r.tray_erro)} className="border-danger/30 bg-danger/15 text-danger">Erro na Tray</Badge>;
+  if (cheio(r.tray_aplicado_em)) {
+    if (r.tray_status_ok === true) return <Badge variant="outline" className="border-success/30 bg-success/15 text-success">Estornado na Tray</Badge>;
+    if (r.tray_pedido_inteiro === false) return <Badge variant="outline" className="bg-muted text-muted-foreground">Só observação (parcial)</Badge>;
+    if (r.tray_pedido_inteiro === true && (r.tray_status_ok === null || r.tray_status_ok === undefined)) return <Badge variant="outline" className="bg-muted text-muted-foreground">Já estava cancelado</Badge>;
+  } else if (r.status === "confirmado") {
+    return <Badge variant="outline" className="border-warning/30 bg-warning/15 text-warning">Aguardando Tray</Badge>;
+  }
+  return <>-</>;
+}
+
 function TabelaEstornos({ rows, loading, onConferir, conferindo }: { rows: Row[]; loading?: boolean; onConferir: (id: any) => void; conferindo: any }) {
   return (
     <div className="overflow-x-auto">
@@ -76,7 +89,7 @@ function TabelaEstornos({ rows, loading, onConferir, conferindo }: { rows: Row[]
           <tr className="border-b text-left text-xs uppercase tracking-wider text-muted-foreground">
             <th className="py-2 pr-3">Data</th><th className="py-2 pr-3">Pedido Tray</th><th className="py-2 pr-3">Método</th>
             <th className="py-2 pr-3 text-right">Valor</th><th className="py-2 pr-3">Motivo</th><th className="py-2 pr-3">Quem pediu</th>
-            <th className="py-2 pr-3">Status</th><th className="py-2 pr-3">Erro</th><th className="py-2 pr-3"></th>
+            <th className="py-2 pr-3">Status</th><th className="py-2 pr-3">Tray</th><th className="py-2 pr-3">Erro</th><th className="py-2 pr-3"></th>
           </tr>
         </thead>
         <tbody>
@@ -89,7 +102,8 @@ function TabelaEstornos({ rows, loading, onConferir, conferindo }: { rows: Row[]
               <td className="py-2 pr-3">{txt(r.motivo)}</td>
               <td className="py-2 pr-3">{txt(r.solicitado_por)}</td>
               <td className="py-2 pr-3"><BadgeStatus s={r.status} /></td>
-              <td className="py-2 pr-3 text-danger">{txt(r.erro)}</td>
+              <td className="py-2 pr-3"><BadgeTray r={r} /></td>
+              <td className="py-2 pr-3 text-danger">{txt(r.erro || r.tray_erro)}</td>
               <td className="py-2 pr-3">
                 {(r.status === "incerto" || r.status === "enviado") && r.id != null && (
                   <Button size="sm" variant="outline" disabled={conferindo === r.id} onClick={() => onConferir(r.id)}>
@@ -99,8 +113,8 @@ function TabelaEstornos({ rows, loading, onConferir, conferindo }: { rows: Row[]
               </td>
             </tr>
           ))}
-          {loading && <tr><td colSpan={9} className="py-4"><Skeleton className="h-6 w-full" /></td></tr>}
-          {!loading && rows.length === 0 && <tr><td colSpan={9} className="py-6 text-center text-muted-foreground">Nenhum estorno.</td></tr>}
+          {loading && <tr><td colSpan={10} className="py-4"><Skeleton className="h-6 w-full" /></td></tr>}
+          {!loading && rows.length === 0 && <tr><td colSpan={10} className="py-6 text-center text-muted-foreground">Nenhum estorno.</td></tr>}
         </tbody>
       </table>
     </div>
@@ -286,7 +300,7 @@ function ModalEstorno({ cobranca, onClose, onFim }: { cobranca: Row; onClose: ()
           </div>
           <div className="flex gap-2 rounded-md border border-warning/40 bg-warning/10 px-3 py-2 font-medium text-warning">
             <AlertTriangle className="h-4 w-4 shrink-0" />
-            <span>O estorno devolve o dinheiro à cliente pela Pagar.me e não pode ser desfeito. Não muda o status do pedido na Tray.</span>
+            <span>O estorno devolve o dinheiro à cliente pela Pagar.me e não pode ser desfeito. No estorno total, o pedido na Tray passa para ESTORNADO. No parcial, só ganha uma observação.</span>
           </div>
         </div>
         <DialogFooter>
